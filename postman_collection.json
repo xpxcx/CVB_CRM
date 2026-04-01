@@ -1,0 +1,73 @@
+{
+  "info": {
+    "name": "MiniCRM Booking API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" }
+  ],
+  "item": [
+    {
+      "name": "GET health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/health"
+      }
+    },
+    {
+      "name": "GET services",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/services"
+      }
+    },
+    {
+      "name": "GET appointments",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/appointments"
+      }
+    },
+    {
+      "name": "POST slots/suggest OK",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"durationMinutes\": 60,\n  \"windowStart\": \"2026-04-05T09:00:00.000Z\",\n  \"windowEnd\": \"2026-04-05T18:00:00.000Z\",\n  \"bufferMinutes\": 10,\n  \"busyIntervals\": [\n    { \"start\": \"2026-04-05T12:00:00.000Z\", \"end\": \"2026-04-05T13:00:00.000Z\" }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/api/slots/suggest"
+      }
+    },
+    {
+      "name": "POST appointments OK",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clientName\": \"Тест\",\n  \"clientPhone\": \"+79001234567\",\n  \"serviceId\": \"svc-1\",\n  \"start\": \"2026-04-10T10:00:00.000Z\",\n  \"end\": \"2026-04-10T11:00:00.000Z\"\n}"
+        },
+        "url": "{{baseUrl}}/api/appointments"
+      }
+    },
+    {
+      "name": "POST appointments BAD",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/api/appointments"
+      }
+    },
+    {
+      "name": "GET 404",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/unknown"
+      }
+    }
+  ]
+}
