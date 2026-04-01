@@ -1,0 +1,319 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "MiniCRM Booking API",
+    "description": "Веб-API для записи клиентов к мастеру: подбор свободных слотов и создание записей. Документация OpenAPI 3.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "MiniCRM Booking"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Текущий хост (локально или после деплоя)"
+    }
+  ],
+  "tags": [
+    { "name": "Система", "description": "Проверка работоспособности" },
+    { "name": "Справочники", "description": "Услуги и записи" },
+    { "name": "Бизнес-логика", "description": "Подбор слотов и бронирование" }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": ["Система"],
+        "summary": "Проверка работоспособности",
+        "description": "Возвращает статус сервиса и версию API.",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Сервис доступен",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "example": {
+                  "status": "ok",
+                  "service": "MiniCRM Booking API",
+                  "version": "1.0.0"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/services": {
+      "get": {
+        "tags": ["Справочники"],
+        "summary": "Список услуг",
+        "description": "Демонстрационный список услуг мастера (в памяти).",
+        "operationId": "getServices",
+        "responses": {
+          "200": {
+            "description": "Массив услуг",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServicesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/appointments": {
+      "get": {
+        "tags": ["Справочники"],
+        "summary": "Список записей",
+        "description": "Все записи, созданные через POST /api/appointments (хранение в памяти процесса).",
+        "operationId": "getAppointments",
+        "responses": {
+          "200": {
+            "description": "Массив записей и счётчик",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppointmentsListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Бизнес-логика"],
+        "summary": "Создать запись",
+        "description": "Создаёт запись клиента на услугу. Обязательны clientName, start, end (ISO 8601).",
+        "operationId": "createAppointment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppointmentCreateRequest"
+              },
+              "example": {
+                "clientName": "Иван Иванов",
+                "clientPhone": "+79001234567",
+                "serviceId": "svc-1",
+                "start": "2026-04-10T10:00:00.000Z",
+                "end": "2026-04-10T11:00:00.000Z"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Запись создана",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppointmentCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Не указаны обязательные поля",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/slots/suggest": {
+      "post": {
+        "tags": ["Бизнес-логика"],
+        "summary": "Подбор свободных слотов",
+        "description": "Рассчитывает список временных слотов по окну поиска, длительности, буферу и занятым интервалам (аналог интеграции с календарём — busy передаётся в теле).",
+        "operationId": "suggestSlots",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SlotSuggestRequest"
+              },
+              "example": {
+                "durationMinutes": 60,
+                "windowStart": "2026-04-05T09:00:00.000Z",
+                "windowEnd": "2026-04-05T18:00:00.000Z",
+                "bufferMinutes": 10,
+                "timezone": "Europe/Moscow",
+                "maxResults": 10,
+                "busyIntervals": [
+                  {
+                    "start": "2026-04-05T12:00:00.000Z",
+                    "end": "2026-04-05T13:00:00.000Z"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Результат расчёта (в т.ч. при meta.ok=false)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlotSuggestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ошибка обработки тела запроса",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "example": "ok" },
+          "service": { "type": "string" },
+          "version": { "type": "string" }
+        }
+      },
+      "ServiceItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "defaultDurationMin": { "type": "integer" },
+          "price": { "type": "number" }
+        }
+      },
+      "ServicesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ServiceItem" }
+          }
+        }
+      },
+      "AppointmentItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "clientName": { "type": "string" },
+          "clientPhone": { "type": "string", "nullable": true },
+          "serviceId": { "type": "string" },
+          "start": { "type": "string", "format": "date-time" },
+          "end": { "type": "string", "format": "date-time" },
+          "status": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AppointmentsListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AppointmentItem" }
+          },
+          "count": { "type": "integer" }
+        }
+      },
+      "AppointmentCreateRequest": {
+        "type": "object",
+        "required": ["clientName", "start", "end"],
+        "properties": {
+          "clientName": { "type": "string", "description": "ФИО или имя клиента" },
+          "clientPhone": { "type": "string", "description": "Телефон (опционально)" },
+          "serviceId": { "type": "string", "description": "Идентификатор услуги, по умолчанию svc-1" },
+          "start": { "type": "string", "format": "date-time", "description": "Начало записи (ISO 8601)" },
+          "end": { "type": "string", "format": "date-time", "description": "Окончание записи (ISO 8601)" }
+        }
+      },
+      "AppointmentCreateResponse": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/AppointmentItem" },
+          "message": { "type": "string" }
+        }
+      },
+      "BusyInterval": {
+        "type": "object",
+        "properties": {
+          "start": { "type": "string", "format": "date-time" },
+          "end": { "type": "string", "format": "date-time" }
+        }
+      },
+      "SlotSuggestRequest": {
+        "type": "object",
+        "properties": {
+          "durationMinutes": { "type": "integer", "description": "Длительность слота в минутах", "default": 60 },
+          "duration_minutes": { "type": "integer", "description": "Алиас для durationMinutes" },
+          "windowStart": { "type": "string", "format": "date-time" },
+          "windowEnd": { "type": "string", "format": "date-time" },
+          "time_window_start": { "type": "string", "description": "Алиас windowStart" },
+          "time_window_end": { "type": "string", "description": "Алиас windowEnd" },
+          "bufferMinutes": { "type": "integer", "default": 10 },
+          "timezone": { "type": "string", "example": "Europe/Moscow" },
+          "maxResults": { "type": "integer", "maximum": 50 },
+          "busyIntervals": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/BusyInterval" },
+            "description": "Занятые интервалы (как от внешнего календаря)"
+          }
+        }
+      },
+      "SlotItem": {
+        "type": "object",
+        "properties": {
+          "start": { "type": "string", "format": "date-time" },
+          "end": { "type": "string", "format": "date-time" },
+          "score": { "type": "integer" },
+          "reason": { "type": "string" }
+        }
+      },
+      "SlotSuggestMeta": {
+        "type": "object",
+        "properties": {
+          "ok": { "type": "boolean" },
+          "count": { "type": "integer" },
+          "timezone": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      },
+      "SlotSuggestResponse": {
+        "type": "object",
+        "properties": {
+          "slots": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SlotItem" }
+          },
+          "meta": { "$ref": "#/components/schemas/SlotSuggestMeta" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,5 +1,12 @@
 import express from "express";
+import { readFileSync } from "fs";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
+import swaggerUi from "swagger-ui-express";
 import { suggestSlots } from "./slotEngine.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const openApiSpec = JSON.parse(readFileSync(join(__dirname, "openapi.json"), "utf8"));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -67,6 +74,19 @@ app.post("/api/appointments", (req, res) => {
   res.status(201).json({ data: row, message: "Запись создана (демо, в памяти)" });
 });
 
+app.get("/openapi.json", (req, res) => {
+  res.type("application/json").send(openApiSpec);
+});
+
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(openApiSpec, {
+    customSiteTitle: "MiniCRM Booking API — Swagger UI",
+    customCss: ".swagger-ui .topbar { display: none }",
+  })
+);
+
 app.use((req, res) => {
   res.status(404).json({ error: "Not found", path: req.path });
 });
@@ -78,4 +98,6 @@ app.listen(PORT, () => {
   console.log(`  GET  /api/appointments`);
   console.log(`  POST /api/slots/suggest`);
   console.log(`  POST /api/appointments`);
+  console.log(`  GET  /openapi.json`);
+  console.log(`  GET  /api-docs — Swagger UI`);
 });

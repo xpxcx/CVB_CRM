@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>План тестирования API MiniCRM Booking</title>
+</head>
+<body>
+
+<p>План тестирования представлен в таблице 1.</p>
+<p>Базовый URL (пример деплоя Render): <code>https://zakaz-bop4.onrender.com</code></p>
+
+<table border="1" cellspacing="0" cellpadding="4">
+<thead>
+<tr>
+<th>№</th>
+<th>Название теста</th>
+<th>Метод</th>
+<th>URL / Эндпоинт</th>
+<th>Параметры</th>
+<th>Body (JSON)</th>
+<th>Ожидаемый код</th>
+<th>Ожидаемый результат</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Проверка работоспособности</td>
+<td>GET</td>
+<td>/api/health</td>
+<td>-</td>
+<td>-</td>
+<td>200</td>
+<td>{"status":"ok","service":"MiniCRM Booking API","version":"1.0.0"}</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Получить список услуг</td>
+<td>GET</td>
+<td>/api/services</td>
+<td>-</td>
+<td>-</td>
+<td>200</td>
+<td>{"data":[...]} — массив услуг с id, title, defaultDurationMin, price</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Получить список записей (до создания)</td>
+<td>GET</td>
+<td>/api/appointments</td>
+<td>-</td>
+<td>-</td>
+<td>200</td>
+<td>{"data":[],"count":0} или массив записей после POST</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Подбор слотов (корректный запрос)</td>
+<td>POST</td>
+<td>/api/slots/suggest</td>
+<td>-</td>
+<td>{"durationMinutes":60,"windowStart":"2026-04-05T09:00:00.000Z","windowEnd":"2026-04-05T18:00:00.000Z","bufferMinutes":10,"busyIntervals":[{"start":"2026-04-05T12:00:00.000Z","end":"2026-04-05T13:00:00.000Z"}]}</td>
+<td>200</td>
+<td>{"slots":[...],"meta":{"ok":true,"count":N,...}}</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Подбор слотов (некорректное окно: конец раньше начала)</td>
+<td>POST</td>
+<td>/api/slots/suggest</td>
+<td>-</td>
+<td>{"durationMinutes":60,"windowStart":"2026-04-05T18:00:00.000Z","windowEnd":"2026-04-05T09:00:00.000Z"}</td>
+<td>200</td>
+<td>{"slots":[],"meta":{"ok":false,"message":"Некорректное окно поиска..."}}</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Подбор слотов (некорректная длительность)</td>
+<td>POST</td>
+<td>/api/slots/suggest</td>
+<td>-</td>
+<td>{"durationMinutes":0,"windowStart":"2026-04-05T09:00:00.000Z","windowEnd":"2026-04-05T18:00:00.000Z"}</td>
+<td>200</td>
+<td>{"slots":[],"meta":{"ok":false,"message":"Некорректная длительность durationMinutes"}}</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Создать запись (корректный запрос)</td>
+<td>POST</td>
+<td>/api/appointments</td>
+<td>-</td>
+<td>{"clientName":"Иван Иванов","clientPhone":"+79001234567","serviceId":"svc-1","start":"2026-04-10T10:00:00.000Z","end":"2026-04-10T11:00:00.000Z"}</td>
+<td>201</td>
+<td>{"data":{"id":"appt-...","clientName":"...","start":"...","end":"...","status":"confirmed",...},"message":"Запись создана (демо, в памяти)"}</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Создать запись (без обязательных полей)</td>
+<td>POST</td>
+<td>/api/appointments</td>
+<td>-</td>
+<td>{"clientEmail":"test@example.com"}</td>
+<td>400</td>
+<td>{"error":"Укажите clientName, start, end (ISO 8601)..."}</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Несуществующий маршрут</td>
+<td>GET</td>
+<td>/api/unknown-route</td>
+<td>-</td>
+<td>-</td>
+<td>404</td>
+<td>{"error":"Not found","path":"/api/unknown-route"}</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Подбор слотов (свободное окно без занятости)</td>
+<td>POST</td>
+<td>/api/slots/suggest</td>
+<td>-</td>
+<td>{"durationMinutes":30,"windowStart":"2026-05-01T08:00:00.000Z","windowEnd":"2026-05-01T12:00:00.000Z","bufferMinutes":5,"busyIntervals":[]}</td>
+<td>200</td>
+<td>{"slots":[...],"meta":{"ok":true,...}} — непустой slots при достаточном окне</td>
+</tr>
+</tbody>
+</table>
+
+<p>Таблица 1 План тестирования API MiniCRM Booking (Render)</p>
+
+</body>
+</html>
