@@ -17,7 +17,8 @@
   "tags": [
     { "name": "Система", "description": "Проверка работоспособности" },
     { "name": "Справочники", "description": "Услуги и записи" },
-    { "name": "Бизнес-логика", "description": "Подбор слотов и бронирование" }
+    { "name": "Бизнес-логика", "description": "Подбор слотов и бронирование" },
+    { "name": "Календарь", "description": "События календаря по периоду" }
   ],
   "paths": {
     "/api/health": {
@@ -100,6 +101,7 @@
                 "clientName": "Иван Иванов",
                 "clientPhone": "+79001234567",
                 "serviceId": "svc-1",
+              "description": "Короткий текст/описание мероприятия (опционально).",
                 "start": "2026-04-10T10:00:00.000Z",
                 "end": "2026-04-10T11:00:00.000Z"
               }
@@ -124,6 +126,48 @@
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/calendar/events": {
+      "get": {
+        "tags": ["Календарь"],
+        "summary": "События календаря за период",
+        "description": "Возвращает список мероприятий (записей) которые пересекаются с указанным периодом. В ответе: даты/время и summary (первые 100 символов текста мероприятия).",
+        "operationId": "getCalendarEventsInPeriod",
+        "parameters": [
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Начало периода (ISO 8601)"
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Конец периода (ISO 8601)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Список событий",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CalendarEventsResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректные параметры периода",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
               }
             }
           }
@@ -220,6 +264,7 @@
           "clientName": { "type": "string" },
           "clientPhone": { "type": "string", "nullable": true },
           "serviceId": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
           "start": { "type": "string", "format": "date-time" },
           "end": { "type": "string", "format": "date-time" },
           "status": { "type": "string" },
@@ -243,8 +288,34 @@
           "clientName": { "type": "string", "description": "ФИО или имя клиента" },
           "clientPhone": { "type": "string", "description": "Телефон (опционально)" },
           "serviceId": { "type": "string", "description": "Идентификатор услуги, по умолчанию svc-1" },
+          "description": { "type": "string", "description": "Текст/описание мероприятия (опционально, будет использоваться в календарном эндпоинте)" },
           "start": { "type": "string", "format": "date-time", "description": "Начало записи (ISO 8601)" },
           "end": { "type": "string", "format": "date-time", "description": "Окончание записи (ISO 8601)" }
+        }
+      },
+      "CalendarEventItem": {
+        "type": "object",
+        "properties": {
+          "start": { "type": "string", "format": "date-time" },
+          "end": { "type": "string", "format": "date-time" },
+          "summary": { "type": "string", "description": "Первые 100 символов текста мероприятия" }
+        }
+      },
+      "CalendarEventsResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CalendarEventItem" }
+          },
+          "count": { "type": "integer" },
+          "period": {
+            "type": "object",
+            "properties": {
+              "start": { "type": "string", "format": "date-time" },
+              "end": { "type": "string", "format": "date-time" }
+            }
+          }
         }
       },
       "AppointmentCreateResponse": {

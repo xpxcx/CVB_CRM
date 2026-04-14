@@ -6,7 +6,14 @@ import { fileURLToPath } from "url";
 import swaggerUi from "swagger-ui-express";
 import { suggestSlots } from "./slotEngine.js";
 import { registerClassmateRoutes } from "./classmateApi.js";
-import { listAppointments, insertAppointment, listServices, insertService, getDbPath } from "./db.js";
+import {
+  listAppointments,
+  listAppointmentsInPeriod,
+  insertAppointment,
+  listServices,
+  insertService,
+  getDbPath,
+} from "./db.js";
 import { registerIntegrationRoutes } from "./integration.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -71,9 +78,42 @@ app.get("/api/appointments", (req, res) => {
   res.json({ data, count: data.length });
 });
 
-/**
- * POST — подбор слотов (бизнес-логика из практики 1–2: POST /slots/suggest)
- */
+function parseIsoOrNull(v) {
+  if (v == null || v === "") return null;
+  const d = new Date(String(v));
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+function short100(s) {
+  const x = s == null ? "" : String(s);
+  if (x.length <= 100) return x;
+  return x.slice(0, 100);
+}
+
+app.get("/api/calendar/events", (req, res) => {
+  const startIso = parseIsoOrNull(req.query.start);
+  const endIso = parseIsoOrNull(req.query.end);
+  if (!startIso || !endIso) {
+    return res.status(400).json({ error: "Укажите query-параметры start и end (ISO 8601)" });
+  }
+  if (new Date(startIso) >= new Date(endIso)) {
+    return res.status(400).json({ error: "start должен быть меньше end" });
+  }
+
+  const rows = listAppointmentsInPeriod({ startIso, endIso });
+  const data = rows.map((a) => {
+    const fallbackText = [a.clientName, a.clientPhone, a.serviceId].filter(Boolean).join(" · ");
+    const text = a.description && String(a.description).trim() ? a.description : fallbackText;
+    return {
+      start: a.start,
+      end: a.end,
+      summary: short100(text),
+    };
+  });
+  res.json({ data, count: data.length, period: { start: startIso, end: endIso } });
+});
+
 app.post("/api/slots/suggest", (req, res) => {
   try {
     const result = suggestSlots(req.body);
@@ -83,11 +123,9 @@ app.post("/api/slots/suggest", (req, res) => {
   }
 });
 
-/**
- * POST — добавление клиентских данных / создание записи (требование задания)
- */
+
 app.post("/api/appointments", (req, res) => {
-  const { clientName, clientPhone, serviceId, start, end } = req.body || {};
+  const { clientName, clientPhone, serviceId, start, end, description } = req.body || {};
   if (!clientName || !start || !end) {
     return res.status(400).json({
       error: "Укажите clientName, start, end (ISO 8601). clientPhone и serviceId — опционально.",
@@ -101,6 +139,7 @@ app.post("/api/appointments", (req, res) => {
     serviceId: serviceId || "svc-1",
     start: String(start),
     end: String(end),
+    description: description != null && String(description).trim() ? String(description) : null,
     status: "confirmed",
     createdAt: new Date().toISOString(),
   };

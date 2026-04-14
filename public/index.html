@@ -260,6 +260,7 @@
       <button type="button" class="nav-btn active" data-panel="p-book">Запись</button>
       <button type="button" class="nav-btn" data-panel="p-services">Справочник услуг</button>
       <button type="button" class="nav-btn" data-panel="p-list">Просмотр записей</button>
+      <button type="button" class="nav-btn" data-panel="p-cal">Календарь (период)</button>
       <button type="button" class="nav-btn" data-panel="p-products">Просмотр товаров</button>
     </aside>
 
@@ -421,6 +422,42 @@
               <tbody id="apptsBody"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <div class="panel" id="p-cal">
+        <div class="card wide">
+          <h3>Календарь — мероприятия за период</h3>
+          <p class="lead">Данные берутся из <code>GET /api/calendar/events</code>. Выберите период и нажмите «Загрузить».</p>
+          <div class="row2">
+            <div>
+              <label for="calStart">Период: с</label>
+              <input id="calStart" type="datetime-local" />
+            </div>
+            <div>
+              <label for="calEnd">Период: по</label>
+              <input id="calEnd" type="datetime-local" />
+            </div>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="action" id="btnLoadCal">Загрузить</button>
+            <button type="button" class="action secondary" id="btnSetCalToday">Сегодня</button>
+            <button type="button" class="action secondary" id="btnSetCalWeek">Неделя</button>
+          </div>
+          <p class="muted" id="calMsg">Выберите период.</p>
+          <div class="table-wrap" id="calWrap" style="display:none">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Начало</th>
+                  <th>Конец</th>
+                  <th>Краткое описание (100 символов)</th>
+                </tr>
+              </thead>
+              <tbody id="calBody"></tbody>
+            </table>
+          </div>
+          <pre class="out" id="calOut" style="display:none"></pre>
         </div>
       </div>
 
@@ -959,6 +996,86 @@
       }
     }
 
+    function parseLocalDatetimeToIso(v) {
+      if (!v) return null;
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return null;
+      return d.toISOString();
+    }
+
+    function renderCalendarEvents(rows) {
+      const tbody = document.getElementById("calBody");
+      const wrap = document.getElementById("calWrap");
+      const msg = document.getElementById("calMsg");
+      tbody.innerHTML = "";
+      if (!rows || !rows.length) {
+        wrap.style.display = "none";
+        msg.textContent = "Нет мероприятий в выбранном периоде.";
+        return;
+      }
+      wrap.style.display = "block";
+      msg.textContent = "Найдено: " + rows.length;
+      rows.forEach((e) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          "<td>" +
+          escapeHtml(e.start) +
+          "</td><td>" +
+          escapeHtml(e.end) +
+          "</td><td>" +
+          escapeHtml(e.summary) +
+          "</td>";
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function loadCalendarEvents() {
+      const msg = document.getElementById("calMsg");
+      const pre = document.getElementById("calOut");
+      const startVal = document.getElementById("calStart").value;
+      const endVal = document.getElementById("calEnd").value;
+      const startIso = parseLocalDatetimeToIso(startVal);
+      const endIso = parseLocalDatetimeToIso(endVal);
+      document.getElementById("calWrap").style.display = "none";
+      pre.style.display = "none";
+      if (!startIso || !endIso) {
+        msg.textContent = "Укажите start и end.";
+        return;
+      }
+      if (new Date(startIso) >= new Date(endIso)) {
+        msg.textContent = "start должен быть меньше end.";
+        return;
+      }
+      msg.textContent = "Загрузка…";
+      try {
+        const url =
+          api("/api/calendar/events") +
+          "?start=" +
+          encodeURIComponent(startIso) +
+          "&end=" +
+          encodeURIComponent(endIso);
+        const r = await fetch(url);
+        const text = await r.text();
+        let j;
+        try {
+          j = text ? JSON.parse(text) : null;
+        } catch {
+          j = { raw: text };
+        }
+        if (!r.ok) {
+          msg.textContent = (j && j.error) || "Ошибка";
+          pre.style.display = "block";
+          pre.textContent = JSON.stringify({ http: r.status, url, data: j }, null, 2);
+          return;
+        }
+        renderCalendarEvents((j && j.data) || []);
+        pre.style.display = "block";
+        pre.textContent = JSON.stringify({ http: r.status, url, data: j }, null, 2);
+      } catch (e) {
+        msg.textContent = String(e.message || e);
+      }
+    }
+
     document.querySelectorAll(".nav-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         document.querySelectorAll(".nav-btn").forEach((b) => b.classList.remove("active"));
@@ -967,6 +1084,7 @@
         const id = btn.dataset.panel;
         document.getElementById(id).classList.add("active");
         if (id === "p-list") loadAppointments();
+        if (id === "p-cal") loadCalendarEvents();
         if (id === "p-services") loadServicesPanel();
         if (id === "p-products") loadProductsPanel();
         if (id === "p-book") {
@@ -1091,6 +1209,27 @@
 
     document.getElementById("btnRefreshAppts").onclick = () => loadAppointments();
     document.getElementById("btnRefreshProducts").onclick = () => loadProductsPanel();
+    document.getElementById("btnLoadCal").onclick = () => loadCalendarEvents();
+
+    document.getElementById("btnSetCalToday").onclick = () => {
+      const a = new Date();
+      a.setHours(0, 0, 0, 0);
+      const b = new Date(a);
+      b.setDate(b.getDate() + 1);
+      document.getElementById("calStart").value = toLocal(a);
+      document.getElementById("calEnd").value = toLocal(b);
+      loadCalendarEvents();
+    };
+
+    document.getElementById("btnSetCalWeek").onclick = () => {
+      const a = new Date();
+      a.setHours(0, 0, 0, 0);
+      const b = new Date(a);
+      b.setDate(b.getDate() + 7);
+      document.getElementById("calStart").value = toLocal(a);
+      document.getElementById("calEnd").value = toLocal(b);
+      loadCalendarEvents();
+    };
 
     document.getElementById("btnAddProduct").onclick = async () => {
       const name = document.getElementById("prodName").value.trim();
